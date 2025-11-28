@@ -115,9 +115,7 @@ EventSchema.pre("save", function (next) {
 
   // Generate slug only if title changed or document is new
   if (event.isModified("title") || event.isNew) {
-    const baseSlug = generateSlug(event.title);
-    // Append timestamp to ensure uniqueness
-    event.slug = `${baseSlug}-${Date.now().toString(36)}`;
+    event.slug = generateSlug(event.title);
   }
 
   // Normalize date to ISO format if it's not already
@@ -144,22 +142,11 @@ function generateSlug(title: string): string {
 
 // Helper function to normalize date to ISO format
 function normalizeDate(dateString: string): string {
-  // Parse as UTC to avoid timezone shifts
-  const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) {
-    // Fallback for other formats
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) {
-      throw new Error("Invalid date format");
-    }
-    return date.toISOString().split("T")[0];
-  }
-  const [, year, month, day] = match;
-  const date = new Date(Date.UTC(+year, +month - 1, +day));
+  const date = new Date(dateString);
   if (isNaN(date.getTime())) {
     throw new Error("Invalid date format");
   }
-  return date.toISOString().split("T")[0];
+  return date.toISOString().split("T")[0]; // Return YYYY-MM-DD format
 }
 
 // Helper function to normalize time format
@@ -173,37 +160,25 @@ function normalizeTime(timeString: string): string {
   }
 
   let hours = parseInt(match[1]);
-  const minutes = parseInt(match[2]);
+  const minutes = match[2];
   const period = match[4]?.toUpperCase();
 
-  // Validate minutes (always 0-59 regardless of format)
-  if (minutes < 0 || minutes > 59) {
-    throw new Error("Invalid minutes: must be between 0 and 59");
-  }
-
-  // Check hour range based on format presence
   if (period) {
-    // 12-hour format: hours must be 1-12
-    if (hours < 1 || hours > 12) {
-      throw new Error(
-        `Invalid hours for 12-hour format: must be between 1 and 12, got ${hours}`
-      );
-    }
     // Convert 12-hour to 24-hour format
     if (period === "PM" && hours !== 12) hours += 12;
     if (period === "AM" && hours === 12) hours = 0;
-  } else {
-    // 24-hour format: hours must be 0-23
-    if (hours < 0 || hours > 23) {
-      throw new Error(
-        `Invalid hours for 24-hour format: must be between 0 and 23, got ${hours}`
-      );
-    }
   }
 
-  return `${hours.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")}`;
+  if (
+    hours < 0 ||
+    hours > 23 ||
+    parseInt(minutes) < 0 ||
+    parseInt(minutes) > 59
+  ) {
+    throw new Error("Invalid time values");
+  }
+
+  return `${hours.toString().padStart(2, "0")}:${minutes}`;
 }
 
 // Create unique index on slug for better performance
