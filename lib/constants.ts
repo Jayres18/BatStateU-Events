@@ -57,3 +57,5 @@ export const events: EventItem[] = [
     image: "/images/event6.png",
   },
 ];
+
+export default events;
